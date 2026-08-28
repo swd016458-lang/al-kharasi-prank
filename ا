@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تفحيط الددسن</title>
+<style>
+html,body{margin:0;overflow:hidden;background:#263238;font-family:Arial}
+canvas{display:block}
+#info{position:fixed;top:10px;right:10px;background:#000b;color:white;padding:12px;border-radius:12px;z-index:5}
+#start{position:fixed;inset:0;background:#101820;display:flex;align-items:center;justify-content:center;z-index:10}
+.box{background:white;padding:30px;border-radius:20px;text-align:center}
+button{padding:15px 30px;border:0;border-radius:12px;background:#159447;color:white;font-size:20px}
+</style>
+</head>
+
+<body>
+
+<div id="info">
+🚙 الددسن<br>
+السرعة: <span id="speed">0</span> كم/س<br>
+🌧️ مطر
+</div>
+
+<div id="start">
+<div class="box">
+<h1>🚙 لعبة تفحيط الددسن</h1>
+<p>أسهم الكيبورد للتحكم</p>
+<button onclick="start()">ابدأ اللعب</button>
+</div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let W,H;
+function resize(){
+ W=canvas.width=innerWidth;
+ H=canvas.height=innerHeight;
+}
+resize();
+onresize=resize;
+
+const keys={};
+onkeydown=e=>keys[e.key.toLowerCase()]=true;
+onkeyup=e=>keys[e.key.toLowerCase()]=false;
+
+let playing=false;
+
+const car={
+ x:0,
+ y:0,
+ angle:0,
+ speed:0
+};
+
+const cars=[];
+const people=[];
+const rain=[];
+
+for(let i=0;i<12;i++){
+ cars.push({
+  x:-1000+Math.random()*2000,
+  y:-1000+Math.random()*2000,
+  angle:Math.random()*Math.PI*2,
+  color:["red","white","blue","black","silver"][i%5]
+ });
+}
+
+for(let i=0;i<25;i++){
+ people.push({
+  x:-1000+Math.random()*2000,
+  y:-1000+Math.random()*2000
+ });
+}
+
+for(let i=0;i<250;i++){
+ rain.push({
+  x:Math.random()*W,
+  y:Math.random()*H,
+  speed:8+Math.random()*12
+ });
+}
+
+function start(){
+ document.getElementById("start").style.display="none";
+ playing=true;
+ loop();
+}
+
+function update(){
+
+ if(keys["arrowup"]||keys["w"])
+  car.speed+=0.18;
+
+ if(keys["arrowdown"]||keys["s"])
+  car.speed-=0.12;
+
+ car.speed*=0.985;
+
+ if(keys["arrowleft"]||keys["a"])
+  car.angle-=0.045*(Math.abs(car.speed)/3+0.3);
+
+ if(keys["arrowright"]||keys["d"])
+  car.angle+=0.045*(Math.abs(car.speed)/3+0.3);
+
+ car.x+=Math.cos(car.angle)*car.speed;
+ car.y+=Math.sin(car.angle)*car.speed;
+
+ document.getElementById("speed").textContent=
+ Math.floor(Math.abs(car.speed)*25);
+}
+
+function drawRoad(){
+
+ ctx.fillStyle="#53634d";
+ ctx.fillRect(0,0,W,H);
+
+ /*
+   مدينة كبيرة:
+   شوارع متقاطعة + أرصفة + مباني وأسواق
+ */
+
+ let ox=W/2-car.x;
+ let oy=H/2-car.y;
+
+ for(let x=-2000;x<2000;x+=500){
+
+  ctx.fillStyle="#3d3d3d";
+  ctx.fillRect(ox+x,0,120,H);
+
+  ctx.strokeStyle="#e5d65c";
+  ctx.lineWidth=3;
+
+  for(let y=0;y<H;y+=45){
+   ctx.fillRect(ox+x+58,y,4,20);
+  }
+
+ }
+
+ for(let y=-2000;y<2000;y+=500){
+
+  ctx.fillStyle="#3d3d3d";
+  ctx.fillRect(0,oy+y,W,120);
+
+  for(let x=0;x<W;x+=45){
+   ctx.fillStyle="#e5d65c";
+   ctx.fillRect(x,oy+y+58,20,4);
+  }
+
+ }
+
+ // المباني والأسواق
+
+ for(let x=-1800;x<1800;x+=250){
+  for(let y=-1800;y<1800;y+=250){
+
+   let sx=ox+x;
+   let sy=oy+y;
+
+   if(
+    sx>150 || sx<-150 ||
+    sy>150 || sy<-150
+   ){
+
+    ctx.fillStyle="#806d5b";
+    ctx.fillRect(sx,sy,190,190);
+
+    ctx.fillStyle="#e8c85a";
+    ctx.fillRect(sx+15,sy+15,160,30);
+
+    ctx.fillStyle="#222";
+    ctx.fillRect(sx+25,sy+65,45,80);
+    ctx.fillRect(sx+85,sy+65,45,80);
+
+    ctx.fillStyle="#fff";
+    ctx.font="bold 16px Arial";
+    ctx.fillText("سوق",sx+65,sy+55);
+   }
+  }
+ }
+}
+
+function drawCars(){
+
+ let ox=W/2-car.x;
+ let oy=H/2-car.y;
+
+ for(let c of cars){
+
+  let x=ox+c.x;
+  let y=oy+c.y;
+
+  if(x<-100||x>W+100||y<-100||y>H+100)continue;
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(c.angle);
+
+  ctx.fillStyle="#111";
+  ctx.fillRect(-24,-13,48,26);
+
+  ctx.fillStyle=c.color;
+  ctx.fillRect(-20,-10,40,20);
+
+  ctx.fillStyle="#8dd4e8";
+  ctx.fillRect(-8,-8,17,16);
+
+  ctx.restore();
+
+  // حركة بسيطة للسيارات
+  c.x+=Math.cos(c.angle)*0.7;
+  c.y+=Math.sin(c.angle)*0.7;
+ }
+}
+
+function drawPeople(){
+
+ let ox=W/2-car.x;
+ let oy=H/2-car.y;
+
+ for(let p of people){
+
+  let x=ox+p.x;
+  let y=oy+p.y;
+
+  if(x<-30||x>W+30||y<-30||y>H+30)continue;
+
+  ctx.fillStyle="#f2c6a0";
+  ctx.beginPath();
+  ctx.arc(x,y-8,5,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle="#222";
+  ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(x,y-3);
+  ctx.lineTo(x,y+12);
+  ctx.moveTo(x,y+2);
+  ctx.lineTo(x-7,y+8);
+  ctx.moveTo(x,y+2);
+  ctx.lineTo(x+7,y+8);
+  ctx.stroke();
+
+  p.x+=Math.sin(p.y)*0.2;
+}
+
+}
+
+function drawCar(){
+
+ let x=W/2;
+ let y=H/2;
+
+ ctx.save();
+ ctx.translate(x,y);
+ ctx.rotate(car.angle);
+
+ // ظل
+ ctx.fillStyle="#0006";
+ ctx.fillRect(-31,-17,62,34);
+
+ // جسم الددسن
+ ctx.fillStyle="#b8b8b8";
+ ctx.fillRect(-28,-15,56,30);
+
+ // الكبوت
+ ctx.fillStyle="#999";
+ ctx.fillRect(10,-14,18,28);
+
+ // القزاز
+ ctx.fillStyle="#6db5cf";
+ ctx.fillRect(-13,-12,20,24);
+
+ // الكفرات
+ ctx.fillStyle="#111";
+ ctx.fillRect(-20,-19,12,6);
+ ctx.fillRect(10,-19,12,6);
+ ctx.fillRect(-20,13,12,6);
+ ctx.fillRect(10,13,12,6);
+
+ // الأنوار
+ ctx.fillStyle="#fff5a0";
+ ctx.fillRect(24,-10,5,7);
+ ctx.fillRect(24,3,5,7);
+
+ ctx.restore();
+}
+
+function drawRain(){
+
+ ctx.strokeStyle="#9bd7ff88";
+ ctx.lineWidth=1;
+
+ for(let r of rain){
+
+  ctx.beginPath();
+  ctx.moveTo(r.x,r.y);
+  ctx.lineTo(r.x-4,r.y+18);
+  ctx.stroke();
+
+  r.y+=r.speed;
+
+  if(r.y>H){
+   r.y=-20;
+   r.x=Math.random()*W;
+  }
+ }
+
+ // غيم
+ ctx.fillStyle="#263238aa";
+ ctx.beginPath();
+
+ for(let i=0;i<8;i++){
+  ctx.arc(
+   i*W/7,
+   65+Math.sin(i)*10,
+   55,
+   0,
+   Math.PI*2
+  );
+ }
+
+ ctx.fill();
+}
+
+function loop(){
+
+ if(!playing)return;
+
+ update();
+
+ drawRoad();
+ drawCars();
+ drawPeople();
+ drawCar();
+ drawRain();
+
+ requestAnimationFrame(loop);
+}
+
+</script>
+
+</body>
+</html>
